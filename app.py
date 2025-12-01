@@ -403,14 +403,53 @@ def render_log_page() -> None:
     st.header("Log")
     st.write("Upload a meal photo or capture one with your camera to auto-detect dishes.")
 
-    uploaded = st.file_uploader(
-        "Choose a photo", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=False
-    )
-    camera_photo = st.camera_input("Or use your camera")
+    # Initialize camera state
+    if "show_camera" not in st.session_state:
+        st.session_state["show_camera"] = False
+
+    # Side by side: Browse files and Camera button
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        uploaded = st.file_uploader(
+            "📁 Browse Files", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=False
+        )
+    
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)  # Align button with file uploader
+        if st.button("📷 Camera", use_container_width=True, type="primary"):
+            st.session_state["show_camera"] = not st.session_state["show_camera"]
+            st.rerun()
+    
+    # Show camera input only when button is clicked
+    camera_photo = None
+    if st.session_state["show_camera"]:
+        # Add custom HTML to request back camera
+        st.markdown("""
+        <script>
+        // Request back camera when camera input is shown
+        setTimeout(function() {
+            const videoInputs = document.querySelectorAll('input[type="file"][accept*="image"]');
+            videoInputs.forEach(input => {
+                if (input.capture !== undefined) {
+                    input.setAttribute('capture', 'environment');
+                }
+            });
+        }, 100);
+        </script>
+        """, unsafe_allow_html=True)
+        
+        camera_photo = st.camera_input("Take a photo", key="camera_input")
+        
+        if st.button("✖ Close Camera"):
+            st.session_state["show_camera"] = False
+            st.rerun()
 
     image_data_url = None
     if camera_photo is not None:
         image_data_url = build_data_url("camera.jpg", camera_photo.getvalue())
+        # Close camera after capturing
+        st.session_state["show_camera"] = False
     elif uploaded is not None:
         image_data_url = build_data_url(uploaded.name, uploaded.getvalue())
 
